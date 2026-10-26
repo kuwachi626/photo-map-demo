@@ -1,3 +1,159 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>みつけた！｜AIフィールドノート</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script><script defer src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script><script defer src="app.js"></script></head>
-<body><header><a class="brand" href="#">◉ みつけた！</a><span>AI FIELD NOTE / 学習デモ</span></header><main><div class="intro"><p class="eyebrow">いつもの景色が、探究になる。</p><h1>撮って、調べて、<br>地図に残そう。</h1><p>写真をAIに見せて、発見した場所にピンを立てよう。</p></div><ol class="steps"><li>01 写真を撮る</li><li>02 AIで調べる</li><li>03 地図に記録</li></ol><div class="grid"><section class="card"><div class="sectionhead"><h2>01 / 写真を撮る</h2><span id="mode" class="tag">サンプルAI</span></div><div class="camera"><video id="video" playsinline muted hidden></video><canvas id="photo" hidden></canvas><div id="placeholder"><b>◎</b><p>どんな発見があるかな？</p><small>カメラを起動するか、写真を選んでね。</small></div></div><div class="actions"><button id="start">カメラを起動</button><button id="shoot" disabled>撮影する</button><button id="stop" class="secondary" disabled>カメラ停止</button><label class="filebutton">写真を選ぶ<input id="upload" type="file" accept="image/*"></label><button id="samplePhoto" class="secondary">猫のサンプル写真で試す</button></div><p id="cameraStatus" class="note" role="status">カメラは起動ボタンを押したときだけ動きます。</p><div class="divider"></div><h2>02 / AIで調べる</h2><p id="modelStatus" class="note">サンプルAI（MobileNet）を準備しています。初回はネット接続が必要です。</p><p class="note">まずはカップや時計など、身近な物で試してみよう。学習していない物も候補のどれかに分類するため、結果を観察してみてね。</p><button id="classify" disabled>この写真を判定する →</button><div id="result" class="result" role="status">写真を用意すると、ここに結果が出ます。</div><details><summary>自分たちのColabモデルを接続</summary><p class="note">TensorFlow.js Layers形式の画像分類モデルに対応。モデルと重みをまとめて選択します。</p><label>model.json と .bin ファイル<input id="modelFiles" type="file" multiple accept=".json,.bin"></label><label>クラス名（学習時の順番・カンマ区切り）<input id="labels" value="植物,花,その他"></label><label>入力の正規化<select id="normalization"><option value="zero">0〜1（画素 ÷ 255）</option><option value="signed">−1〜1（画素 ÷ 127.5 − 1）</option><option value="raw">0〜255（変換なし）</option></select></label><label>出力<select id="output"><option value="probabilities">確率（softmax済み）</option><option value="logits">スコア（softmaxを適用）</option></select></label><button id="load" class="secondary">モデルを読み込む</button><button id="resetModel" class="secondary">サンプルAIに戻す</button></details></section><section class="card mapcard"><div class="sectionhead"><h2>03 / 地図に記録</h2><span id="count" class="tag">0 件の発見</span></div><p class="note">判定後、現在地を取得して発見を記録しよう。</p><div id="map"></div><button id="locate" disabled>現在地を取得してピンを立てる</button><button id="sampleLocation" class="secondary" disabled>サンプル位置（東京駅）で試す</button><p id="geoStatus" role="status" class="note">位置情報はボタンを押すと取得します。</p><div id="records" class="records"><p>発見したものが、ここに並びます。</p></div><button id="clear" class="secondary">記録をすべて消す</button><p class="note">写真・判定・記録はこの画面内だけに保持します。再読み込みで消えます。地図表示には外部サービスを利用します。</p></section></div><footer>写真 → AI → 位置情報 → 地図。4つの技術を、ひとつの体験に。</footer></main></body></html>
+<html lang="ja">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>みつけた！｜AIフィールドノート</title>
+		<link rel="stylesheet" href="style.css" />
+		<link
+			rel="stylesheet"
+			href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+		/>
+		<script
+			defer
+			src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+		></script>
+		<script
+			defer
+			src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"
+		></script>
+		<script
+			defer
+			src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"
+		></script>
+		<script defer src="app.js"></script>
+	</head>
+	<body>
+		<header>
+			<a class="brand" href="#">◉ みつけた！</a
+			><span>AI FIELD NOTE / 学習デモ</span>
+		</header>
+		<main>
+			<div class="intro">
+				<p class="eyebrow">いつもの景色が、探究になる。</p>
+				<h1>撮って、調べて、<br />地図に残そう。</h1>
+				<p>写真をAIに見せて、発見した場所にピンを立てよう。</p>
+			</div>
+			<ol class="steps">
+				<li>01 写真を撮る</li>
+				<li>02 AIで調べる</li>
+				<li>03 地図に記録</li>
+			</ol>
+			<div class="grid">
+				<section class="card">
+					<div class="sectionhead">
+						<h2>01 / 写真を撮る</h2>
+						<span id="mode" class="tag">サンプルAI</span>
+					</div>
+					<div class="camera">
+						<video id="video" playsinline muted hidden></video
+						><canvas id="photo" hidden></canvas>
+						<div id="placeholder">
+							<b>◎</b>
+							<p>どんな発見があるかな？</p>
+							<small>カメラを起動するか、写真を選んでね。</small>
+						</div>
+					</div>
+					<div class="actions">
+						<button id="start">カメラを起動</button
+						><button id="shoot" disabled>撮影する</button
+						><button id="stop" class="secondary" disabled>
+							カメラ停止</button
+						><label class="filebutton"
+							>写真を選ぶ<input
+								id="upload"
+								type="file"
+								accept="image/*" /></label
+						><button id="samplePhoto" class="secondary">
+							猫のサンプル写真で試す
+						</button>
+					</div>
+					<p id="cameraStatus" class="note" role="status">
+						カメラは起動ボタンを押したときだけ動きます。
+					</p>
+					<div class="divider"></div>
+					<h2>02 / AIで調べる</h2>
+					<p id="modelStatus" class="note">
+						サンプルAI（MobileNet）を準備しています。初回はネット接続が必要です。
+					</p>
+					<p class="note">
+						まずはカップや時計など、身近な物で試してみよう。学習していない物も候補のどれかに分類するため、結果を観察してみてね。
+					</p>
+					<button id="classify" disabled>この写真を判定する →</button>
+					<div id="result" class="result" role="status">
+						写真を用意すると、ここに結果が出ます。
+					</div>
+					<details>
+						<summary>自分たちのColabモデルを接続</summary>
+						<p class="note">
+							TensorFlow.js
+							Layers形式の画像分類モデルに対応。モデルと重みをまとめて選択します。
+						</p>
+						<label
+							>model.json と .bin ファイル<input
+								id="modelFiles"
+								type="file"
+								multiple
+								accept=".json,.bin" /></label
+						><label
+							>クラス名（学習時の順番・カンマ区切り）<input
+								id="labels"
+								value="植物,花,その他" /></label
+						><label
+							>入力の正規化<select id="normalization">
+								<option value="zero">0〜1（画素 ÷ 255）</option>
+								<option value="signed">
+									−1〜1（画素 ÷ 127.5 − 1）
+								</option>
+								<option value="raw">0〜255（変換なし）</option>
+							</select></label
+						><label
+							>出力<select id="output">
+								<option value="probabilities">
+									確率（softmax済み）
+								</option>
+								<option value="logits">
+									スコア（softmaxを適用）
+								</option>
+							</select></label
+						><button id="load" class="secondary">
+							モデルを読み込む</button
+						><button id="resetModel" class="secondary">
+							サンプルAIに戻す
+						</button>
+					</details>
+				</section>
+				<section class="card mapcard">
+					<div class="sectionhead">
+						<h2>03 / 地図に記録</h2>
+						<span id="count" class="tag">0 件の発見</span>
+					</div>
+					<p class="note">
+						判定後、現在地を取得して発見を記録しよう。
+					</p>
+					<div id="map"></div>
+					<button id="locate" disabled>
+						現在地を取得してピンを立てる</button
+					><button id="sampleLocation" class="secondary" disabled>
+						サンプル位置（東京駅）で試す
+					</button>
+					<p id="geoStatus" role="status" class="note">
+						位置情報はボタンを押すと取得します。
+					</p>
+					<div id="records" class="records">
+						<p>発見したものが、ここに並びます。</p>
+					</div>
+					<button id="clear" class="secondary">
+						記録をすべて消す
+					</button>
+					<p class="note">
+						写真・判定・記録はこの画面内だけに保持します。再読み込みで消えます。地図表示には外部サービスを利用します。
+					</p>
+				</section>
+			</div>
+			<footer>
+				写真 → AI → 位置情報 → 地図。4つの技術を、ひとつの体験に。
+			</footer>
+		</main>
+	</body>
+</html>
